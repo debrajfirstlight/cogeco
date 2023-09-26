@@ -1,51 +1,54 @@
-# Copyright (c) Streamlit Inc. (2018-2022) Snowflake Inc. (2022)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import streamlit as st
-from streamlit.logger import get_logger
+import os
+import vertexai
+from langchain.llms import VertexAI
+from langchain.retrievers import GoogleCloudEnterpriseSearchRetriever
+from langchain.chains import RetrievalQA
 
-LOGGER = get_logger(__name__)
+# Set the path to your service account JSON key file
+SERVICE_ACCOUNT_KEY_PATH = "C:\\Users\\HP\\Downloads\\fl-datascience-research-stag-3321f553dcf8.json"
 
+# Set your Google Cloud Project ID, Search Engine ID, Region, and Model
+PROJECT_ID = "fl-datascience-research-stag"
+SEARCH_ENGINE_ID = "fl-cogeco-podcast-transcri_1695652576173"
+REGION = "us-central1"
+MODEL = "text-bison@001"
 
-def run():
-    st.set_page_config(
-        page_title="Hello",
-        page_icon="👋",
+# Initialize environment variables
+os.environ["SEARCH_ENGINE_ID"] = SEARCH_ENGINE_ID
+os.environ["PROJECT_ID"] = PROJECT_ID
+os.environ["REGION"] = REGION
+os.environ["MODEL"] = MODEL
+
+# Set the GOOGLE_APPLICATION_CREDENTIALS environment variable
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = SERVICE_ACCOUNT_KEY_PATH
+
+# Initialize Vertex AI and Langchain
+vertexai.init(project=PROJECT_ID, location=REGION)
+llm = VertexAI(model_name=MODEL)
+
+# Create a Streamlit app
+st.title("Question Retrieval App")
+
+# User input: Enter a question
+search_query = st.text_input("Enter your question:")
+
+# ...
+if st.button("Retrieve Answer"):
+    retriever = GoogleCloudEnterpriseSearchRetriever(
+        project_id=PROJECT_ID, search_engine_id=SEARCH_ENGINE_ID
     )
 
-    st.write("# Welcome to Streamlit! 👋")
-
-    st.sidebar.success("Select a demo above.")
-
-    st.markdown(
-        """
-        Streamlit is an open-source app framework built specifically for
-        Machine Learning and Data Science projects.
-        **👈 Select a demo from the sidebar** to see some examples
-        of what Streamlit can do!
-        ### Want to learn more?
-        - Check out [streamlit.io](https://streamlit.io)
-        - Jump into our [documentation](https://docs.streamlit.io)
-        - Ask a question in our [community
-          forums](https://discuss.streamlit.io)
-        ### See more complex demos
-        - Use a neural net to [analyze the Udacity Self-driving Car Image
-          Dataset](https://github.com/streamlit/demo-self-driving)
-        - Explore a [New York City rideshare dataset](https://github.com/streamlit/demo-uber-nyc-pickups)
-    """
+    retrieval_qa = RetrievalQA.from_chain_type(
+        llm=llm, chain_type="stuff", retriever=retriever
     )
 
+    result = retrieval_qa.run(search_query)
 
-if __name__ == "__main__":
-    run()
+    # Display the result without checking its type
+    st.subheader("Answer:")
+    st.write(result[0]+result[1:].lstrip())
+
+
+
+# This will display the Streamlit app with an input box for questions and a button to retrieve answers.
